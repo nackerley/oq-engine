@@ -602,6 +602,17 @@ class CompositionInfo(object):
             self.__class__.__name__, '\n'.join(summary))
 
 
+def split(src):
+    has_serial = hasattr(src, 'serial')
+    start = 0
+    for split in src:
+        if has_serial:
+            nr = split.num_ruptures
+            split.serial = src.serial[start:start + nr]
+            start += nr
+        yield split
+
+
 class CompositeSourceModel(collections.Sequence):
     """
     :param source_model_lt:
@@ -663,7 +674,7 @@ class CompositeSourceModel(collections.Sequence):
                 sources = []
                 for src in src_group.sources:
                     if hasattr(src, '__iter__'):  # MultiPointSource AreaSource
-                        sources.extend(src)
+                        sources.extend(split(src))
                     else:
                         sources.append(src)
                 sg = copy.copy(src_group)
