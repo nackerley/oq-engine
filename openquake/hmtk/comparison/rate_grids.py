@@ -49,8 +49,7 @@
 Python tools for calculating activity rates on a grid from a source model
 """
 import numpy as np
-from openquake.hazardlib.sourceconverter import (SourceConverter,
-                                                 area_to_point_sources)
+from openquake.hazardlib.sourceconverter import SourceConverter
 from openquake.hazardlib.nrml import SourceModelParser
 from openquake.hazardlib.source.complex_fault import ComplexFaultSource
 from openquake.hazardlib.source.characteristic import CharacteristicFaultSource
@@ -240,8 +239,7 @@ class RateGrid(object):
             Area source as instance of :class:
             openquake.hazardlib.source.area.AreaSource
         """
-        points = list(area_to_point_sources(source))
-        for point in points:
+        for point in source:
             self._get_point_rates(point, mmin, mmax)
 
     def _get_fault_rates(self, source, mmin, mmax=np.inf):
