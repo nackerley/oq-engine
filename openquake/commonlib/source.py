@@ -666,6 +666,7 @@ class CompositeSourceModel(collections.Sequence):
         :param sitecol: a SiteCollection instance
         :para src_filter: a SourceFilter instance
         """
+        ngsims = {trt: len(gs) for trt, gs in self.gsim_lt.values.items()}
         source_models = []
         weight = 0
         for sm in self.source_models:
@@ -673,7 +674,8 @@ class CompositeSourceModel(collections.Sequence):
             for src_group in sm.src_groups:
                 sources = []
                 for src in src_group.sources:
-                    if hasattr(src, '__iter__'):  # MultiPointSource AreaSource
+                    src.ngsims = ngsims[src.tectonic_region_type]
+                    if hasattr(src, '__iter__'):  # MultiPointSource, AreaSource
                         sources.extend(split(src))
                     else:
                         sources.append(src)
@@ -881,6 +883,7 @@ def split_source(src):
                 'Splitting %s "%s" in %d sources', src.__class__.__name__,
                 src.source_id, len(splits))
     for split in splits:
+        split.ngsims = src.ngsims
         if has_serial:
             nr = split.num_ruptures
             split.serial = src.serial[start:start + nr]
