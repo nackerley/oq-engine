@@ -75,7 +75,7 @@ elif USE_CELERY:
         if not stats:
             sys.exit("No live compute nodes, aborting calculation")
         num_cores = sum(stats[k]['pool']['max-concurrency'] for k in stats)
-        OqParam.concurrent_tasks.default = num_cores * 5
+        OqParam.concurrent_tasks.default = num_cores * 2
         logs.LOG.info(
             'Using %s, %d cores', ', '.join(sorted(stats)), num_cores)
 
