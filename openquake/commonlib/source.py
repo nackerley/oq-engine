@@ -36,7 +36,7 @@ from openquake.commonlib import logictree
 
 
 MINWEIGHT = sourceconverter.MINWEIGHT
-MAXWEIGHT = 4E6  # heuristic, set by M. Simionato
+MAXWEIGHT = 1E7  # heuristic, set by M. Simionato
 MAX_INT = 2 ** 31 - 1
 TWO16 = 2 ** 16
 U16 = numpy.uint16
@@ -655,6 +655,7 @@ class CompositeSourceModel(collections.Sequence):
         :param sitecol: a SiteCollection instance
         :para src_filter: a SourceFilter instance
         """
+        ngsims = {trt: len(gs) for trt, gs in self.gsim_lt.values.items()}
         source_models = []
         weight = 0
         for sm in self.source_models:
@@ -662,8 +663,9 @@ class CompositeSourceModel(collections.Sequence):
             for src_group in sm.src_groups:
                 sources = []
                 for src in src_group.sources:
+                    src.ngsims = ngsims[src.tectonic_region_type]
                     if hasattr(src, '__iter__'):  # MultiPointSource
-                        sources.extend(src)
+                        sources.extend(split_source(src))
                     else:
                         sources.append(src)
                 sg = copy.copy(src_group)
@@ -870,6 +872,7 @@ def split_source(src):
                 'Splitting %s "%s" in %d sources', src.__class__.__name__,
                 src.source_id, len(splits))
     for split in splits:
+        split.ngsims = src.ngsims
         if has_serial:
             nr = split.num_ruptures
             split.serial = src.serial[start:start + nr]
