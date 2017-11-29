@@ -391,13 +391,18 @@ class SourceFilter(object):
         return bbs
 
     def __call__(self, sources, sites=None):
+        """
+        Filter the given sources against the gives sites and return a list
+        of pairs (filtered_src, filtered_sites).
+        """
+        out = []
         if sites is None:
             sites = self.sitecol
         for src in sources:
             if not self.integration_distance:  # do not filter
                 if sites is not None:
                     src.nsites = len(sites)
-                yield src, sites
+                out.append((src, sites))
             elif self.use_rtree:  # Rtree filtering, used in the controller
                 box = self.get_affected_box(src)
                 sids = numpy.array(sorted(self.index.intersection(box)))
@@ -409,7 +414,8 @@ class SourceFilter(object):
                     raise ValueError('sids=%s' % sids)
                 if len(sids):
                     src.nsites = len(sids)
-                    yield src, FilteredSiteCollection(sids, sites.complete)
+                    out.append(
+                        (src, FilteredSiteCollection(sids, sites.complete)))
             else:  # normal filtering, used in the workers
                 _, maxmag = src.get_min_max_mag()
                 maxdist = self.integration_distance(
@@ -419,7 +425,8 @@ class SourceFilter(object):
                         maxdist, sites)
                 if s_sites is not None:
                     src.nsites = len(s_sites)
-                    yield src, s_sites
+                    out.append((src, s_sites))
+        return out
 
     def __getstate__(self):
         return dict(integration_distance=self.integration_distance,
