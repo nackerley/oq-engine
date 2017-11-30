@@ -71,7 +71,7 @@ def classical(sources, gsims, param, monitor):
     """
     if getattr(sources, 'src_interdep', None) == 'mutex':
         return pmap_from_grp(sources, gsims, param, monitor)
-    else:
+    else:  # independent sources, normal case
         return pmap_from_trt(sources, gsims, param, monitor)
 
 
@@ -155,11 +155,12 @@ class PSHACalculator(base.HazardCalculator):
         """
         oq = self.oqparam
         opt = self.oqparam.optimize_same_id_sources
-        maxweight = 1000
+        maxweight = 2000
         param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls,
                      maximum_distance=oq.maximum_distance)
         num_tasks = 0
         num_sources = 0
+        gsim_lt = self.csm.gsim_lt
         with self.monitor('prefiltering'):
             self.csm.src_filter = SourceFilter(
                 self.sitecol, oq.maximum_distance)
@@ -168,14 +169,14 @@ class PSHACalculator(base.HazardCalculator):
         #                 csm.has_dupl_sources)
         for sg in self.csm.src_groups:
             if sg.src_interdep == 'mutex':
-                gsims = self.csm.info.gsim_lt.get_gsims(sg.trt)
+                gsims = gsim_lt.get_gsims(sg.trt)
                 self.csm.add_infos(sg.sources)  # update self.csm.infos
                 yield sg, gsims, param, monitor
                 num_tasks += 1
                 num_sources += len(sg.sources)
         # NB: csm.get_sources_by_trt discards the mutex sources
         for trt, sources in self.csm.get_sources_by_trt(opt).items():
-            gsims = self.csm.info.gsim_lt.get_gsims(trt)
+            gsims = gsim_lt.get_gsims(trt)
             self.csm.add_infos(sources)  # update with unsplit sources
             for block in self.csm.split_in_blocks(maxweight, sources):
                 yield block, gsims, param, monitor

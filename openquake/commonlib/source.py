@@ -622,6 +622,7 @@ class CompositeSourceModel(collections.Sequence):
             self.source_model_lt.num_samples,
             [sm.get_skeleton() for sm in self.source_models],
             self.weight)
+        self.ngsims = {trt: len(gs) for trt, gs in self.gsim_lt.values.items()}
         # dictionary src_group_id, source_id -> SourceInfo,
         # populated by the .split_in_blocks method
         self.infos = {}
@@ -807,6 +808,18 @@ class CompositeSourceModel(collections.Sequence):
             for grp_id in src.src_group_ids:
                 self.infos[grp_id, src.source_id] = SourceInfo(src)
 
+    def set_weight(self, sources):
+        if not sources:
+            return []
+        ngsims = self.ngsims[sources[0].tectonic_region_type]
+        out = []
+        for src in sources:
+            if self.src_filter.get_close_sites(src) is not None:
+                src.ngsims = ngsims
+                out.append(src)
+        out.sort(key=weight)
+        return out
+
     def split_in_blocks(self, maxweight, sources):
         """
         Split a set of sources in blocks of weight up to maxweight; heavy
@@ -816,9 +829,7 @@ class CompositeSourceModel(collections.Sequence):
         :param sources: sources of the same source group
         :yields: blocks of sources of weight around maxweight
         """
-        sources = sorted((s for s in sources
-                          if self.src_filter.get_close_sites(s) is not None),
-                         key=weight)
+        sources = self.set_weight(sources)
 
         # yield light sources in blocks
         light = [src for src in sources if src.weight <= maxweight]
@@ -828,8 +839,7 @@ class CompositeSourceModel(collections.Sequence):
         # yield heavy sources in blocks
         heavy = [src for src in sources if src.weight > maxweight]
         for src in heavy:
-            srcs = [s for s in split_source(src)
-                    if self.src_filter.get_close_sites(s) is not None]
+            srcs = self.set_weight(list(split_source(src)))
             for block in block_splitter(srcs, maxweight, weight):
                 yield block
 
