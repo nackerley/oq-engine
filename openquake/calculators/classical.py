@@ -24,7 +24,7 @@ import numpy
 
 from openquake.baselib import parallel
 from openquake.baselib.python3compat import encode
-from openquake.baselib.general import AccumDict
+from openquake.baselib.general import AccumDict, block_splitter
 from openquake.hazardlib.calc.hazard_curve import (
     pmap_from_grp, pmap_from_trt, ProbabilityMap)
 from openquake.hazardlib.stats import compute_pmap_stats
@@ -213,6 +213,68 @@ class PSHACalculator(base.HazardCalculator):
                     self.datastore.set_attrs(key, trt=grp_trt[grp_id])
             if 'poes' in self.datastore:
                 self.datastore.set_nbytes('poes')
+
+
+def filter_split_filter(sources, src_filter, monitor):
+    """
+    :param sources: list of sources
+    :param src_filter: SourceFilter instance
+    :param monitor: a Monitor instance
+    :returns: a list of filtered sources with .sites attribute
+    """
+    out = []
+    for src, sites in src_filter(sources):
+        splits = list(source.split_source(src))
+        if len(splits) > 1:
+            for src_, sites_ in src_filter(splits, sites):
+                src_.sites = sites_
+                out.append(src_)
+        else:
+            src.sites = sites
+            out.append(src)
+    return out
+
+
+@base.calculators.add('psha2')
+class PSHA2Calculator(PSHACalculator):
+    """
+    Classical PSHA calculator, experimental version
+    """
+    core_task = classical
+
+    def gen_args(self, monitor):
+        """
+        Used in the case of large source model logic trees.
+
+        :param monitor: a :class:`openquake.baselib.performance.Monitor`
+        :yields: (sources, sites, gsims, monitor) tuples
+        """
+        oq = self.oqparam
+        opt = self.oqparam.optimize_same_id_sources
+        src_filter = SourceFilter(
+            self.sitecol, oq.maximum_distance, use_rtree=False)
+
+        sent = {}  # submit filter_split_filter tasks
+        for trt, sources in self.csm.get_sources_by_trt(opt).items():
+            self.csm.add_infos(sources)  # update with unsplit sources
+            sent[trt] = parallel.Starmap.apply(
+                filter_split_filter, (sources, src_filter, monitor),
+                concurrent_tasks=100).submit_all()
+
+        num_tasks = 0
+        num_sources = 0
+        maxweight = 1E5
+        param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls)
+        fakefilter = SourceFilter(None, oq.maximum_distance)
+        for trt in sent:
+            gsims = self.csm.info.gsim_lt.get_gsims(trt)
+            for sources in sent[trt]:
+                for block in block_splitter(sources, maxweight):
+                    yield block, fakefilter, gsims, param, monitor
+                    num_tasks += 1
+                    num_sources += len(block)
+        logging.info('Sent %d sources in %d tasks', num_sources, num_tasks)
+        source.split_map.clear()
 
 
 def fix_ones(pmap):
