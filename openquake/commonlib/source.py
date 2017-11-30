@@ -19,7 +19,6 @@
 from __future__ import division
 import os
 import re
-import copy
 import math
 import logging
 import operator
