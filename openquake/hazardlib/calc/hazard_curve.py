@@ -155,16 +155,9 @@ def pmap_from_grp(group, gsims, param, monitor=Monitor()):
 
     :returns: a dictionary {grp_id: ProbabilityMap instance}
     """
-    sources = group.sources
+    srcs = group.sources
     mutex_weight = {src.source_id: weight for src, weight in
                     zip(group.sources, group.srcs_weights)}
-    srcs = []
-    for src in sources:
-        if hasattr(src, '__iter__'):  # MultiPointSource
-            srcs.extend(src)
-        else:
-            srcs.append(src)
-    del sources
     with GroundShakingIntensityModel.forbid_instantiation():
         imtls = param['imtls']
         trunclevel = param.get('truncation_level')
@@ -204,15 +197,7 @@ def pmap_from_trt(sources, gsims, param, monitor=Monitor()):
         a dictionary {grp_id: pmap} with attributes .grp_ids, .calc_times,
         .eff_ruptures
     """
-    srcs = []
     grp_ids = set()
-    for src in sources:
-        if hasattr(src, '__iter__'):  # MultiPointSource
-            srcs.extend(src)
-        else:
-            srcs.append(src)
-        grp_ids.update(src.src_group_ids)
-    del sources
     with GroundShakingIntensityModel.forbid_instantiation():
         imtls = param['imtls']
         trunclevel = param.get('truncation_level')
@@ -224,7 +209,7 @@ def pmap_from_trt(sources, gsims, param, monitor=Monitor()):
                           for grp_id in grp_ids})
         pmap.calc_times = []  # pairs (src_id, delta_t)
         pmap.eff_ruptures = AccumDict()  # grp_id -> num_ruptures
-        for src in srcs:
+        for src in sources:
             t0 = time.time()
             poe = poe_map(
                 src, src.sites, imtls, cmaker, trunclevel, ctx_mon, pne_mons)

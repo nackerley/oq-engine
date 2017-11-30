@@ -19,7 +19,6 @@
 from __future__ import division
 import logging
 import operator
-import math
 import numpy
 
 from openquake.baselib import parallel
@@ -156,7 +155,7 @@ class PSHACalculator(base.HazardCalculator):
         """
         oq = self.oqparam
         opt = self.oqparam.optimize_same_id_sources
-        maxweight = 1000 * math.sqrt(len(self.sitecol))
+        maxweight = 1000 * max(len(self.sitecol), 5000)
         param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls,
                      maximum_distance=oq.maximum_distance)
         num_tasks = 0
@@ -165,17 +164,13 @@ class PSHACalculator(base.HazardCalculator):
         with self.monitor('prefiltering'):
             self.csm.src_filter = SourceFilter(
                 self.sitecol, oq.maximum_distance)
-        #if csm.has_dupl_sources and not opt:
-        #    logging.warn('Found %d duplicated sources, use oq info',
-        #                 csm.has_dupl_sources)
         for sg in self.csm.src_groups:
             if sg.src_interdep == 'mutex':
-                gsims = gsim_lt.get_gsims(sg.trt)
                 self.csm.add_infos(sg.sources)  # update self.csm.infos
-                yield sg, gsims, param, monitor
+                yield sg, gsim_lt.get_gsims(sg.trt), param, monitor
                 num_tasks += 1
                 num_sources += len(sg.sources)
-        # NB: csm.get_sources_by_trt discards the mutex sources
+        # NB: csm.get_sources_by_trt ignores the mutex sources
         for trt, sources in self.csm.get_sources_by_trt(opt).items():
             gsims = gsim_lt.get_gsims(trt)
             self.csm.add_infos(sources)  # update with unsplit sources
@@ -184,6 +179,9 @@ class PSHACalculator(base.HazardCalculator):
                 num_tasks += 1
                 num_sources += len(block)
         logging.info('Sent %d sources in %d tasks', num_sources, num_tasks)
+        if self.csm.has_dupl_sources and not opt:
+            logging.warn('Found %d duplicated sources, use oq info',
+                         self.csm.has_dupl_sources)
     source.split_map.clear()
 
     def post_execute(self, pmap_by_grp_id):

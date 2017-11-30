@@ -828,7 +828,13 @@ class CompositeSourceModel(collections.Sequence):
         :param sources: sources of the same source group
         :yields: blocks of sources of weight around maxweight
         """
-        sources = self.set_weight(sources)
+        srcs = []
+        for src in sources:
+            if hasattr(src, '__iter__'):
+                srcs.extend(split_source(src))
+            else:
+                srcs.append(src)
+        sources = self.set_weight(srcs)
 
         # yield light sources in blocks
         light = [src for src in sources if src.weight <= maxweight]
