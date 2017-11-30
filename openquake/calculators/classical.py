@@ -253,28 +253,16 @@ class PSHA2Calculator(PSHACalculator):
         opt = self.oqparam.optimize_same_id_sources
         src_filter = SourceFilter(
             self.sitecol, oq.maximum_distance, use_rtree=False)
-
-        sent = {}  # submit filter_split_filter tasks
-        for trt, sources in self.csm.get_sources_by_trt(opt).items():
-            self.csm.add_infos(sources)  # update with unsplit sources
-            sent[trt] = parallel.Starmap.apply(
-                filter_split_filter, (sources, src_filter, monitor),
-                name='filter_split_filter %s' % trt,
-                concurrent_tasks=100, weight=weight).submit_all()
-
+        param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls)
         num_tasks = 0
         num_sources = 0
-        maxweight = 1E5
-        param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls)
-        fakefilter = SourceFilter(None, oq.maximum_distance)
-        for trt in sent:
+        for trt, sources in self.csm.get_sources_by_trt(opt).items():
+            sources.sort(key=weight)
             gsims = self.csm.info.gsim_lt.get_gsims(trt)
-            for sources in sent[trt]:
-                logging.info('Processing %d sources %s', len(sources), trt)
-                for block in block_splitter(sources, maxweight, weight):
-                    yield block, fakefilter, gsims, param, monitor
-                    num_tasks += 1
-                    num_sources += len(block)
+            for src in sources:
+                yield [src], src_filter, gsims, param, monitor
+                num_tasks += 1
+                num_sources += 1
         logging.info('Sent %d sources in %d tasks', num_sources, num_tasks)
         source.split_map.clear()
 
