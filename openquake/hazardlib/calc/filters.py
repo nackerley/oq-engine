@@ -394,9 +394,11 @@ class SourceFilter(object):
         if sites is None:
             sites = self.sitecol
         for src in sources:
-            if not self.integration_distance:  # do not filter
+            if hasattr(src, 'sites'):  # already filtered
+                yield src, src.sites
+            elif not self.integration_distance:  # do not filter
                 if sites is not None:
-                    src.nsites = len(sites)
+                    src.sites = sites
                 yield src, sites
             elif self.use_rtree:  # Rtree filtering, used in the controller
                 box = self.get_affected_box(src)
@@ -408,8 +410,8 @@ class SourceFilter(object):
                     # and wrong sids!
                     raise ValueError('sids=%s' % sids)
                 if len(sids):
-                    src.nsites = len(sids)
-                    yield src, FilteredSiteCollection(sids, sites.complete)
+                    src.sites = FilteredSiteCollection(sids, sites.complete)
+                    yield src, src.sites
             else:  # normal filtering, used in the workers
                 _, maxmag = src.get_min_max_mag()
                 maxdist = self.integration_distance(
@@ -418,7 +420,7 @@ class SourceFilter(object):
                     s_sites = src.filter_sites_by_distance_to_source(
                         maxdist, sites)
                 if s_sites is not None:
-                    src.nsites = len(s_sites)
+                    src.sites = s_sites
                     yield src, s_sites
 
     def __getstate__(self):

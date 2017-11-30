@@ -40,7 +40,6 @@ class BaseSeismicSource(with_metaclass(abc.ABCMeta)):
     _slots_ = ['source_id', 'name', 'tectonic_region_type',
                'src_group_id', 'num_ruptures', 'seed', 'id']
     RUPTURE_WEIGHT = 1.  # overridden in (Multi)PointSource, AreaSource
-    nsites = 1  # FIXME: remove this and fix all hazardlib tests
     ngsims = 1  # set by the engine
 
     @abc.abstractproperty
@@ -56,6 +55,10 @@ class BaseSeismicSource(with_metaclass(abc.ABCMeta)):
         if not self.num_ruptures:
             self.num_ruptures = self.count_ruptures()
         return self.num_ruptures * self.RUPTURE_WEIGHT * self.ngsims
+
+    @property
+    def nsites(self):
+        return len(self.sites) if hasattr(self, 'sites') else 1
 
     @property
     def src_group_ids(self):
