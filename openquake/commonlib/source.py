@@ -813,10 +813,9 @@ class CompositeSourceModel(collections.Sequence):
             return []
         ngsims = self.ngsims[sources[0].tectonic_region_type]
         out = []
-        for src in sources:
-            if self.src_filter.get_close_sites(src) is not None:
-                src.ngsims = ngsims
-                out.append(src)
+        for src in self.src_filter(sources):
+            src.ngsims = ngsims
+            out.append(src)
         out.sort(key=weight)
         return out
 

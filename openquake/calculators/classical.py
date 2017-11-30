@@ -19,6 +19,7 @@
 from __future__ import division
 import logging
 import operator
+import math
 import numpy
 
 from openquake.baselib import parallel
@@ -155,7 +156,7 @@ class PSHACalculator(base.HazardCalculator):
         """
         oq = self.oqparam
         opt = self.oqparam.optimize_same_id_sources
-        maxweight = 2000
+        maxweight = 1000 * math.sqrt(len(self.sitecol))
         param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls,
                      maximum_distance=oq.maximum_distance)
         num_tasks = 0
