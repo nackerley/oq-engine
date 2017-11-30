@@ -136,6 +136,7 @@ class OqParam(valid.ParamSet):
     truncation_level = valid.Param(valid.NoneOr(valid.positivefloat), None)
     uniform_hazard_spectra = valid.Param(valid.boolean, False)
     width_of_mfd_bin = valid.Param(valid.positivefloat, None)
+    task_size = valid.Param(valid.positiveint, 1000)
 
     @property
     def risk_files(self):
