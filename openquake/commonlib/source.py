@@ -816,7 +816,9 @@ class CompositeSourceModel(collections.Sequence):
         :param sources: sources of the same source group
         :yields: blocks of sources of weight around maxweight
         """
-        sources.sort(key=weight)
+        sources = sorted((s for s in sources
+                          if self.src_filter.get_close_sites(s) is not None),
+                         key=weight)
 
         # yield light sources in blocks
         light = [src for src in sources if src.weight <= maxweight]

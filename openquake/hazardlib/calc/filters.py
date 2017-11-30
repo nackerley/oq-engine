@@ -373,9 +373,9 @@ class SourceFilter(object):
         Returns the sites within the integration distance from the source,
         or None.
         """
-        source_sites = list(self([source]))
-        if source_sites:
-            return source_sites[0][1]
+        sources = list(self([source]))
+        if sources:
+            return sources[0].sites
 
     def get_bounding_boxes(self, trt=None, mag=None):
         """
@@ -395,11 +395,11 @@ class SourceFilter(object):
             sites = self.sitecol
         for src in sources:
             if hasattr(src, 'sites'):  # already filtered
-                yield src, src.sites
+                yield src
             elif not self.integration_distance:  # do not filter
-                if sites is not None:
-                    src.sites = sites
-                yield src, sites
+                assert sites is not None
+                src.sites = sites
+                yield src
             elif self.use_rtree:  # Rtree filtering, used in the controller
                 box = self.get_affected_box(src)
                 sids = numpy.array(sorted(self.index.intersection(box)))
@@ -411,7 +411,7 @@ class SourceFilter(object):
                     raise ValueError('sids=%s' % sids)
                 if len(sids):
                     src.sites = FilteredSiteCollection(sids, sites.complete)
-                    yield src, src.sites
+                    yield src
             else:  # normal filtering, used in the workers
                 _, maxmag = src.get_min_max_mag()
                 maxdist = self.integration_distance(
@@ -421,7 +421,7 @@ class SourceFilter(object):
                         maxdist, sites)
                 if s_sites is not None:
                     src.sites = s_sites
-                    yield src, s_sites
+                    yield src
 
     def __getstate__(self):
         return dict(integration_distance=self.integration_distance,

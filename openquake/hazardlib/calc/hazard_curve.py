@@ -146,7 +146,7 @@ def poe_map(src, s_sites, imtls, cmaker, trunclevel, ctx_mon, pne_mons,
 
 
 # this is used by the engine
-def pmap_from_grp(group, src_filter, gsims, param, monitor=Monitor()):
+def pmap_from_grp(group, gsims, param, monitor=Monitor()):
     """
     Compute the hazard curves for a set of sources belonging to the same
     tectonic region type for all the GSIMs associated to that TRT.
@@ -158,7 +158,6 @@ def pmap_from_grp(group, src_filter, gsims, param, monitor=Monitor()):
     sources = group.sources
     mutex_weight = {src.source_id: weight for src, weight in
                     zip(group.sources, group.srcs_weights)}
-    maxdist = src_filter.integration_distance
     srcs = []
     for src in sources:
         if hasattr(src, '__iter__'):  # MultiPointSource
@@ -169,23 +168,23 @@ def pmap_from_grp(group, src_filter, gsims, param, monitor=Monitor()):
     with GroundShakingIntensityModel.forbid_instantiation():
         imtls = param['imtls']
         trunclevel = param.get('truncation_level')
-        cmaker = ContextMaker(gsims, maxdist)
+        cmaker = ContextMaker(gsims, param['maximum_distance'])
         ctx_mon = monitor('making contexts', measuremem=False)
         pne_mons = [monitor('%s.get_poes' % gsim, measuremem=False)
                     for gsim in gsims]
         pmap = ProbabilityMap(len(imtls.array), len(gsims))
         calc_times = []  # pairs (src_id, delta_t)
-        for src, s_sites in src_filter(srcs):
+        for src in srcs:
             t0 = time.time()
             poemap = poe_map(
-                src, s_sites, imtls, cmaker, trunclevel, ctx_mon, pne_mons,
+                src, src.sites, imtls, cmaker, trunclevel, ctx_mon, pne_mons,
                 group.rup_interdep == 'indep')
             weight = mutex_weight[src.source_id]
             for sid in poemap:
                 pcurve = pmap.setdefault(sid, 0)
                 pcurve += poemap[sid] * weight
             calc_times.append(
-                (src.source_id, src.weight, len(s_sites), time.time() - t0))
+                (src.source_id, src.weight, len(src.sites), time.time() - t0))
         if group.grp_probability is not None:
             pmap *= group.grp_probability
         acc = AccumDict({group.id: pmap})
@@ -196,7 +195,7 @@ def pmap_from_grp(group, src_filter, gsims, param, monitor=Monitor()):
 
 
 # this is used by the engine
-def pmap_from_trt(sources, src_filter, gsims, param, monitor=Monitor()):
+def pmap_from_trt(sources, gsims, param, monitor=Monitor()):
     """
     Compute the hazard curves for a set of sources belonging to the same
     tectonic region type for all the GSIMs associated to that TRT.
@@ -205,7 +204,6 @@ def pmap_from_trt(sources, src_filter, gsims, param, monitor=Monitor()):
         a dictionary {grp_id: pmap} with attributes .grp_ids, .calc_times,
         .eff_ruptures
     """
-    maxdist = src_filter.integration_distance
     srcs = []
     grp_ids = set()
     for src in sources:
@@ -218,7 +216,7 @@ def pmap_from_trt(sources, src_filter, gsims, param, monitor=Monitor()):
     with GroundShakingIntensityModel.forbid_instantiation():
         imtls = param['imtls']
         trunclevel = param.get('truncation_level')
-        cmaker = ContextMaker(gsims, maxdist)
+        cmaker = ContextMaker(gsims, param['maximum_distance'])
         ctx_mon = monitor('making contexts', measuremem=False)
         pne_mons = [monitor('%s.get_poes' % gsim, measuremem=False)
                     for gsim in gsims]
@@ -226,15 +224,15 @@ def pmap_from_trt(sources, src_filter, gsims, param, monitor=Monitor()):
                           for grp_id in grp_ids})
         pmap.calc_times = []  # pairs (src_id, delta_t)
         pmap.eff_ruptures = AccumDict()  # grp_id -> num_ruptures
-        for src, s_sites in src_filter(srcs):
+        for src in srcs:
             t0 = time.time()
             poe = poe_map(
-                src, s_sites, imtls, cmaker, trunclevel,
-                ctx_mon, pne_mons)
+                src, src.sites, imtls, cmaker, trunclevel, ctx_mon, pne_mons)
             for grp_id in src.src_group_ids:
                 pmap[grp_id] |= poe
             pmap.calc_times.append(
-                (src.source_id, src.weight, len(s_sites), time.time() - t0))
+                (src.source_id, src.weight, len(src.sites),
+                 time.time() - t0))
             # storing the number of contributing ruptures too
             pmap.eff_ruptures += {grp_id: poe.eff_ruptures
                                   for grp_id in src.src_group_ids}
