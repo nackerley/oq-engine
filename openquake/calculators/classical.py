@@ -215,15 +215,15 @@ class PSHACalculator(base.HazardCalculator):
                 self.datastore.set_nbytes('poes')
 
 
-def filter_split_filter(sources, src_filter, monitor):
+def filter_split_filter(src, src_filter, monitor):
     """
-    :param sources: list of sources
+    :param src: a source
     :param src_filter: SourceFilter instance
     :param monitor: a Monitor instance
     :returns: a list of filtered sources with .sites attribute
     """
     out = []
-    for src, sites in src_filter(sources):
+    for src, sites in src_filter([src]):
         splits = list(source.split_source(src))
         if len(splits) > 1:
             for src_, sites_ in src_filter(splits, sites):
@@ -257,10 +257,10 @@ class PSHA2Calculator(PSHACalculator):
         sent = {}  # submit filter_split_filter tasks
         for trt, sources in self.csm.get_sources_by_trt(opt).items():
             self.csm.add_infos(sources)  # update with unsplit sources
-            sent[trt] = parallel.Starmap.apply(
-                filter_split_filter, (sources, src_filter, monitor),
-                name='filter_split_filter %s' % trt,
-                concurrent_tasks=100, weight=weight).submit_all()
+            sent[trt] = parallel.Starmap(
+                filter_split_filter,
+                [(src, src_filter, monitor) for src in sources],
+                name='filter_split_filter %s' % trt).submit_all()
 
         num_tasks = 0
         num_sources = 0
@@ -270,7 +270,7 @@ class PSHA2Calculator(PSHACalculator):
         for trt in sent:
             gsims = self.csm.info.gsim_lt.get_gsims(trt)
             for sources in sent[trt]:
-                logging.info('Processing %d sources %s', len(sources), trt)
+                logging.debug('Processing %d sources %s', len(sources), trt)
                 for block in block_splitter(sources, maxweight, weight):
                     yield block, fakefilter, gsims, param, monitor
                     num_tasks += 1
