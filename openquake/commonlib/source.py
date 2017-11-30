@@ -890,6 +890,7 @@ def split_source(src):
                 src.source_id, len(splits))
     for split in splits:
         split.ngsims = src.ngsims
+        split.src_group_id = src.src_group_id
         if has_serial:
             nr = split.num_ruptures
             split.serial = src.serial[start:start + nr]
