@@ -215,26 +215,6 @@ class PSHACalculator(base.HazardCalculator):
                 self.datastore.set_nbytes('poes')
 
 
-def filter_split_filter(sources, src_filter, monitor):
-    """
-    :param sources: list of sources
-    :param src_filter: SourceFilter instance
-    :param monitor: a Monitor instance
-    :returns: a list of filtered sources with .sites attribute
-    """
-    out = []
-    for src, sites in src_filter(sources):
-        splits = list(source.split_source(src))
-        if len(splits) > 1:
-            for src_, sites_ in src_filter(splits, sites):
-                src_.sites = sites_
-                out.append(src_)
-        else:
-            src.sites = sites
-            out.append(src)
-    return out
-
-
 @base.calculators.add('psha2')
 class PSHA2Calculator(PSHACalculator):
     """
@@ -257,10 +237,9 @@ class PSHA2Calculator(PSHACalculator):
         num_tasks = 0
         num_sources = 0
         for trt, sources in self.csm.get_sources_by_trt(opt).items():
-            sources.sort(key=weight)
             gsims = self.csm.info.gsim_lt.get_gsims(trt)
-            for src in sources:
-                yield [src], src_filter, gsims, param, monitor
+            for block in self.csm.split_in_blocks(100, sources):
+                yield block, src_filter, gsims, param, monitor
                 num_tasks += 1
                 num_sources += 1
         logging.info('Sent %d sources in %d tasks', num_sources, num_tasks)

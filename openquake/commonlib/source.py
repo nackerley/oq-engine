@@ -824,8 +824,11 @@ class CompositeSourceModel(collections.Sequence):
         # yield heavy sources in blocks
         heavy = [src for src in sources if src.weight > maxweight]
         for src in heavy:
-            srcs = [s for s in split_source(src)
-                    if self.src_filter.get_close_sites(s) is not None]
+            if hasattr(self, 'src_filter'):
+                srcs = [s for s in split_source(src)
+                        if self.src_filter.get_close_sites(s) is not None]
+            else:
+                srcs = split_source(src)
             for block in block_splitter(srcs, maxweight, weight):
                 yield block
 
