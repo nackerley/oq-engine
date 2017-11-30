@@ -781,7 +781,7 @@ class CompositeSourceModel(collections.Sequence):
         for src in self.src_filter(sources):
             src.ngsims = ngsims
             out.append(src)
-        out.sort(key=weight)
+        out.sort(key=weight, reverse=True)  # heaviest first
         return out
 
     def split_in_blocks(self, maxweight, sources):
