@@ -648,42 +648,6 @@ class CompositeSourceModel(collections.Sequence):
                          for src in sg.sources)
         return new
 
-    def filter(self, src_filter):
-        """
-        Generate a new CompositeSourceModel by filtering the sources on
-        the given site collection.
-
-        :param sitecol: a SiteCollection instance
-        :para src_filter: a SourceFilter instance
-        """
-        ngsims = {trt: len(gs) for trt, gs in self.gsim_lt.values.items()}
-        source_models = []
-        weight = 0
-        for sm in self.source_models:
-            src_groups = []
-            for src_group in sm.src_groups:
-                sources = []
-                for src in src_group.sources:
-                    src.ngsims = ngsims[src.tectonic_region_type]
-                    if hasattr(src, '__iter__'):  # MultiPointSource
-                        sources.extend(split_source(src))
-                    else:
-                        sources.append(src)
-                sg = copy.copy(src_group)
-                sg.sources = []
-                for src, sites in src_filter(sources):
-                    sg.sources.append(src)
-                    weight += src.weight
-                src_groups.append(sg)
-            newsm = logictree.SourceModel(
-                sm.name, sm.weight, sm.path, src_groups,
-                sm.num_gsim_paths, sm.ordinal, sm.samples)
-            source_models.append(newsm)
-        new = self.__class__(self.gsim_lt, self.source_model_lt, source_models)
-        new.weight = weight
-        new.src_filter = src_filter
-        return new
-
     @property
     def src_groups(self):
         """
@@ -808,7 +772,8 @@ class CompositeSourceModel(collections.Sequence):
             for grp_id in src.src_group_ids:
                 self.infos[grp_id, src.source_id] = SourceInfo(src)
 
-    def set_weight(self, sources):
+    def set_ngsims(self, sources):
+        # set the attribute .ngsims on each relevant source
         if not sources:
             return []
         ngsims = self.ngsims[sources[0].tectonic_region_type]
@@ -834,17 +799,21 @@ class CompositeSourceModel(collections.Sequence):
                 srcs.extend(split_source(src))
             else:
                 srcs.append(src)
-        sources = self.set_weight(srcs)
+        sources = self.set_ngsims(srcs)
 
         # yield light sources in blocks
         light = [src for src in sources if src.weight <= maxweight]
+        for src in light:
+            self.weight += src.weight
         for block in block_splitter(light, maxweight, weight):
+            for src in block:
+                self.weight += src.weight
             yield block
 
         # yield heavy sources in blocks
         heavy = [src for src in sources if src.weight > maxweight]
         for src in heavy:
-            srcs = self.set_weight(list(split_source(src)))
+            srcs = self.set_ngsims(list(split_source(src)))
             for block in block_splitter(srcs, maxweight, weight):
                 yield block
 

@@ -197,7 +197,9 @@ def pmap_from_trt(sources, gsims, param, monitor=Monitor()):
         a dictionary {grp_id: pmap} with attributes .grp_ids, .calc_times,
         .eff_ruptures
     """
-    grp_ids = set(s.src_group_id for s in sources)
+    grp_ids = set()
+    for src in sources:
+        grp_ids.update(src.src_group_ids)
     with GroundShakingIntensityModel.forbid_instantiation():
         imtls = param['imtls']
         trunclevel = param.get('truncation_level')

@@ -70,12 +70,10 @@ def set_eids(ebruptures):
     return num_events
 
 
-def compute_ruptures(sources, src_filter, gsims, param, monitor):
+def compute_ruptures(sources, gsims, param, monitor):
     """
     :param sources:
         List of commonlib.source.Source tuples
-    :param src_filter:
-        a source site filter
     :param gsims:
         a list of GSIMs for the current tectonic region model
     :param param:
@@ -93,10 +91,8 @@ def compute_ruptures(sources, src_filter, gsims, param, monitor):
     rup_mon = monitor('filtering ruptures', measuremem=False)
     # Compute and save stochastic event sets
     num_ruptures = 0
-    for src, s_sites in src_filter(sources):
+    for src in sources:
         t0 = time.time()
-        if s_sites is None:
-            continue
         num_ruptures += src.num_ruptures
         num_occ_by_rup = sample_ruptures(
             src, param['ses_per_logic_tree_path'], sources.samples,
@@ -105,8 +101,8 @@ def compute_ruptures(sources, src_filter, gsims, param, monitor):
         # more efficient to filter only the ruptures that occur, i.e.
         # to call sample_ruptures *before* the filtering
         for ebr in _build_eb_ruptures(
-                src, num_occ_by_rup, src_filter.integration_distance,
-                s_sites, param['seed'], rup_mon):
+                src, num_occ_by_rup, param['maximum_distance'],
+                src.sites, param['seed'], rup_mon):
             eb_ruptures.append(ebr)
         dt = time.time() - t0
         calc_times.append((src.id, dt))
@@ -261,7 +257,7 @@ class EventBasedRuptureCalculator(base.HazardCalculator):
         :yields: (sources, sites, gsims, monitor) tuples
         """
         oq = self.oqparam
-        csm = self.csm  # we may filter here in the future
+        csm.src_filter = SourceFilter(self.sitecol, oq.maximum_distance)
         maxweight = csm.get_maxweight(oq.concurrent_tasks)
         numheavy = len(csm.get_sources('heavy', maxweight))
         logging.info('Using maxweight=%d, numheavy=%d', maxweight, numheavy)
@@ -279,7 +275,7 @@ class EventBasedRuptureCalculator(base.HazardCalculator):
                 csm.add_infos(sg.sources)
                 for block in csm.split_in_blocks(maxweight, sg.sources):
                     block.samples = sm.samples
-                    yield block, csm.src_filter, gsims, param, monitor
+                    yield block, gsims, param, monitor
                     num_tasks += 1
                     num_sources += len(block)
         logging.info('Sent %d sources in %d tasks', num_sources, num_tasks)
