@@ -155,7 +155,8 @@ class PSHACalculator(base.HazardCalculator):
         """
         oq = self.oqparam
         opt = self.oqparam.optimize_same_id_sources
-        maxweight = 1000 * max(len(self.sitecol), 2000)
+        nsites = len(self.sitecol)
+        maxweight = 1000 * (nsites if nsites < 1000 else 1000)
         param = dict(truncation_level=oq.truncation_level, imtls=oq.imtls,
                      maximum_distance=oq.maximum_distance)
         num_tasks = 0
