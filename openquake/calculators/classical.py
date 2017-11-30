@@ -238,7 +238,7 @@ class PSHA2Calculator(PSHACalculator):
         num_sources = 0
         for trt, sources in self.csm.get_sources_by_trt(opt).items():
             gsims = self.csm.info.gsim_lt.get_gsims(trt)
-            for block in self.csm.split_in_blocks(100, sources):
+            for block in self.csm.split_in_blocks(1000, sources):
                 yield block, src_filter, gsims, param, monitor
                 num_tasks += 1
                 num_sources += 1
