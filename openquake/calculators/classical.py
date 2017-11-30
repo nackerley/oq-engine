@@ -259,7 +259,8 @@ class PSHA2Calculator(PSHACalculator):
             self.csm.add_infos(sources)  # update with unsplit sources
             sent[trt] = parallel.Starmap.apply(
                 filter_split_filter, (sources, src_filter, monitor),
-                concurrent_tasks=100).submit_all()
+                name='filter_split_filter %s' % trt,
+                concurrent_tasks=100, weight=weight).submit_all()
 
         num_tasks = 0
         num_sources = 0
@@ -269,7 +270,8 @@ class PSHA2Calculator(PSHACalculator):
         for trt in sent:
             gsims = self.csm.info.gsim_lt.get_gsims(trt)
             for sources in sent[trt]:
-                for block in block_splitter(sources, maxweight):
+                logging.info('Processing %d sources %s', len(sources), trt)
+                for block in block_splitter(sources, maxweight, weight):
                     yield block, fakefilter, gsims, param, monitor
                     num_tasks += 1
                     num_sources += len(block)
